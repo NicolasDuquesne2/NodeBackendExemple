@@ -3,6 +3,7 @@ const mongoose = require('mongoose')
 const app = express()
 const cors = require('cors')
 const stuffsRoutes = require('./routes/stuff')
+const userRoutes = require('./routes/user')
 
 
 //app.use(cors())
@@ -32,6 +33,7 @@ mongoose.connect('mongodb+srv://nduquesne:Kijfdjh584584@cluster0.5vlae.mongodb.n
 
 
 app.use('/api/stuff', stuffsRoutes)
+app.use('/api/auth', userRoutes)
 
 
 module.exports = app
