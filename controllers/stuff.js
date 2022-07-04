@@ -1,5 +1,6 @@
-const { json } = require('express');
-const Thing = require('../models/thing');
+const { json } = require('express')
+const fs = require('fs')
+const Thing = require('../models/thing')
 
 exports.createThing = (req, res, next) => {
 
@@ -44,43 +45,70 @@ exports.getOneThing = (req, res, next) => {
 }
 
 exports.modifyThing = (req, res, next) => {
-  const thing = new Thing({
-    _id: req.params.id,
-    title: req.body.title,
-    description: req.body.description,
-    imageUrl: req.body.imageUrl,
-    price: req.body.price,
-    userId: req.body.userId
-  });
-  Thing.updateOne({_id: req.params.id}, thing).then(
-    () => {
-      res.status(201).json({
-        message: 'Thing updated successfully!'
-      })
-    }
-  ).catch(
-    (error) => {
-      res.status(400).json({
-        error: error
-      })
-    }
-  )
+  const thingObject = req.file? {
+    ...JSON.parse(req.body.thing),
+    imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+  } : { ...req.body }
+
+  delete thingObject._userId
+
+  Thing.findOne({_id: req.params.id})
+    .then((thing) => {
+      if (thing.userId != req.auth.userId) {
+        res.status(401).json({ message: 'Not authorized'})
+      } else {
+        
+        Thing.updateOne({_id: req.params.id},  {...thingObject, _id: req.params.id}).then(
+          () => {
+            res.status(200).json({
+              message: 'Thing updated successfully!'
+            })
+          }
+        ).catch(
+          (error) => {
+            res.status(401).json({
+              error: error
+            })
+          }
+        )
+
+      }
+    })
+    .catch((error) => {
+      res.status(400).json( {error})
+    })
+  
 }
 
 exports.deleteThing = (req, res, next) => {
-  Thing.deleteOne({_id: req.params.id}).then(
-    () => {
-      res.status(200).json({
-        message: 'Deleted!'
-      })
-    }
-  ).catch(
-    (error) => {
-      res.status(400).json({
-        error: error
-      })
-    }
-  )
+
+  Thing.findOne({_id: req.params.id})
+    .then((thing) => {
+      if (thing.userId != req.auth.userId) {
+        res.status(401).json({ message: 'Not authorized'})
+      } else {
+
+        const filename = thing.imageUrl.split('/images/')[1]
+        fs.unlink(`images/${filename}`, () => {
+          Thing.deleteOne({_id: req.params.id}).then(
+            () => {
+              res.status(200).json({
+                message: 'Deleted!'
+              })
+            }
+          ).catch(
+            (error) => {
+              res.status(400).json({
+                error: error
+              })
+            }
+          )
+        })
+      }
+    })
+    .catch((error) => {
+      res.status(500).json( {error})
+    })
 }
 
 exports.getAllStuff = (req, res, next) => {
